@@ -1,23 +1,9 @@
--- Esquema mínimo de un SaaS multi-tenant: inquilinos, membresías con estado y
--- documentos que pertenecen a un inquilino.
---
--- El estado de la membresía es el centro de todo. Un usuario `invited` todavía no
--- aceptó; un usuario `suspended` fue dado de baja. Ninguno de los dos debe leer
--- nada, y ésa es exactamente la clase de fuga que un `where tenant_id = $1` en el
--- controlador no detecta: el filtro por inquilino es correcto y aun así el
--- suspendido lee.
+-- Tenants, memberships with a status, and documents that belong to a tenant.
+-- `invited` and `suspended` members must not read anything, even though they
+-- belong to the tenant. A `where tenant_id = $1` in the app doesn't catch that.
 
--- Dos roles, ninguno con privilegios de más:
---
---   app_owner  dueño de las tablas y de la función de comprobación. No es
---              superusuario a propósito: una función `security definer` propiedad
---              de un superusuario es una escalada de privilegios esperando un
---              descuido.
---   app_user   el rol con el que conecta la API. Sin SUPERUSER y sin BYPASSRLS;
---              cualquiera de los dos apaga en silencio todas las políticas.
---
--- Ambas ausencias están afirmadas en `test/isolation.test.ts`, no confiadas al
--- criterio de quien revise el siguiente cambio.
+-- app_owner owns the tables and the membership check. Not a superuser, on purpose.
+-- app_user is what the API connects as: no SUPERUSER, no BYPASSRLS. The tests check both.
 create role app_owner nologin;
 create role app_user nologin;
 

@@ -1,4 +1,4 @@
-# Postgres desechable para correr las pruebas en local.
+# Throwaway Postgres for running the tests locally.
 #   docker compose up -d --wait && npm test
 services:
   db:

@@ -2,10 +2,7 @@ import type pg from 'pg'
 
 import { asMigrator } from './db.js'
 
-/**
- * Dos inquilinos y cuatro usuarios que cubren los casos que importan:
- * un miembro activo de cada inquilino, uno suspendido y uno invitado.
- */
+/** Two tenants: an active member in each, plus a suspended, an invited and an unrelated user. */
 export const FIXTURE = {
     tenantAcme: '11111111-1111-4111-8111-111111111111',
     tenantGlobex: '22222222-2222-4222-8222-222222222222',

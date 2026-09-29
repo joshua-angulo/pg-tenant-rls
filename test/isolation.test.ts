@@ -16,10 +16,10 @@ afterAll(async () => {
     await pool.end()
 })
 
-/** Primera fila de un resultado que, por construcción, siempre trae una. */
+/** First row of a result that always has one. */
 const one = <T,>(rows: T[]): T => {
     const [row] = rows
-    if (!row) throw new Error('la consulta no devolvió ninguna fila')
+    if (!row) throw new Error('query returned no rows')
     return row
 }
 
@@ -30,8 +30,7 @@ const countDocuments = async (userId: string | null): Promise<number> =>
     })
 
 describe('who can read', () => {
-    // La prueba positiva va primero a propósito: sin ella, todas las negativas de
-    // abajo pasarían igual con la tabla vacía.
+    // Positive test first: without it, every negative test below would also pass on an empty table.
     it("an active member sees their tenant's documents, and only those", async () => {
         const titles = await asAppUser(pool, FIXTURE.activeInAcme, async (client) => {
             const { rows } = await client.query<{ title: string }>(
@@ -43,9 +42,7 @@ describe('who can read', () => {
     })
 
     it('a suspended member sees nothing', async () => {
-        // El caso que motivó todo esto: el filtro por inquilino en el controlador
-        // es correcto y aun así el suspendido leía. El estado de la membresía no
-        // vive en la consulta, vive en la política.
+        // The bug that started this: the tenant filter was right and a suspended user could still read.
         expect(await countDocuments(FIXTURE.suspendedInAcme)).toBe(0)
     })
 
@@ -58,9 +55,7 @@ describe('who can read', () => {
     })
 
     it('with no identity in the session nothing is visible: fail closed', async () => {
-        // Si la capa de aplicación olvida fijar `app.user_id`, el resultado correcto
-        // es cero filas. El resultado peligroso —y el que da una consulta sin RLS—
-        // sería la tabla completa.
+        // If the app forgets to set app.user_id, the answer must be zero rows, not the whole table.
         expect(await countDocuments(null)).toBe(0)
     })
 
@@ -73,9 +68,7 @@ describe('who can read', () => {
     })
 
     it('a member can see their own memberships even when suspended', async () => {
-        // Un usuario dado de baja tiene que poder ver que está dado de baja: si la
-        // política también le ocultara su membresía, la interfaz no podría explicar
-        // por qué no ve nada.
+        // Otherwise the UI couldn't tell a suspended user why they see nothing.
         const statuses = await asAppUser(pool, FIXTURE.suspendedInAcme, async (client) => {
             const { rows } = await client.query<{ status: string }>('select status from memberships')
             return rows.map((r) => r.status)
@@ -97,8 +90,7 @@ describe('who can write', () => {
     })
 
     it('cannot insert a document into another tenant', async () => {
-        // Sin `with check` en la política de INSERT, esto pasaría: `using` solo
-        // gobierna lo que se lee.
+        // This would pass without `with check` on the insert policy.
         await expect(
             asAppUser(pool, FIXTURE.activeInAcme, (client) =>
                 client.query('insert into documents (tenant_id, title) values ($1, $2)', [
@@ -121,9 +113,7 @@ describe('who can write', () => {
     })
 
     it("an UPDATE on someone else's documents does not error: it simply reaches no rows", async () => {
-        // Detalle que sorprende y conviene tener escrito: RLS no lanza error al
-        // actualizar filas invisibles, las filtra. Un `rowCount` de 0 es la señal
-        // de autorización, y el código de la aplicación tiene que leerlo.
+        // RLS doesn't throw on rows you can't see; it filters them. The app has to check rowCount.
         const affected = await asAppUser(pool, FIXTURE.activeInGlobex, async (client) => {
             const { rowCount } = await client.query(
                 'update documents set title = $1 where title = $2',
@@ -145,10 +135,9 @@ describe('who can write', () => {
     })
 })
 
-describe('guarantees of the mechanism itself', () => {
+describe('the mechanism itself', () => {
     it('the table owner is also subject to the policies', async () => {
-        // Esto es lo que compra `force row level security`. Con solo `enable`, el
-        // dueño —normalmente el rol que corre las migraciones— vería las tres filas.
+        // This is what `force` buys. With only `enable`, the owner would see all three rows.
         const visible = await asOwner(pool, async (client) => {
             const { rows } = await client.query<{ count: string }>('select count(*) from documents')
             return Number(one(rows).count)
@@ -165,9 +154,7 @@ describe('guarantees of the mechanism itself', () => {
     })
 
     it('the application role has neither SUPERUSER nor BYPASSRLS', async () => {
-        // Un atributo de rol concedido de más apaga en silencio todas las políticas
-        // de este repositorio. Se afirma aquí para que un cambio futuro lo rompa
-        // ruidosamente en CI y no en producción.
+        // Either attribute silently turns off every policy here, so CI should fail if one appears.
         const attrs = await asMigrator(pool, async (client) => {
             const { rows } = await client.query<{ rolsuper: boolean; rolbypassrls: boolean }>(
                 'select rolsuper, rolbypassrls from pg_roles where rolname = $1',
@@ -179,10 +166,7 @@ describe('guarantees of the mechanism itself', () => {
     })
 
     it('if RLS is turned off, the leak appears: the suite detects its own failure', async () => {
-        // Un control que nunca ha fallado no demuestra nada: puede estar apagado.
-        // Aquí se inyecta el fallo —desactivar RLS— y se comprueba que el suspendido
-        // pasa a ver las tres filas. Todo ocurre dentro de una transacción que se
-        // revierte, así que el esquema queda intacto.
+        // Turn RLS off inside a rolled-back transaction and check the leak shows up.
         const client = await pool.connect()
         try {
             await client.query('begin')

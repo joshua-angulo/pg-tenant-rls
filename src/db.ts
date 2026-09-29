@@ -14,15 +14,10 @@ export function createPool(): pg.Pool {
     return new pg.Pool({ connectionString: CONNECTION_STRING, max: 4 })
 }
 
-/**
- * Aplica el esquema desde cero. Se ejecuta con el rol de migración (superusuario
- * en local y en CI), nunca con el rol de la aplicación.
- */
+/** Rebuilds the schema from scratch. Runs as the migration role, never as app_user. */
 export async function migrate(pool: pg.Pool): Promise<void> {
-    // `drop role` falla si al rol le queda un solo privilegio concedido, así que
-    // primero hay que soltar lo que posee. Sin esto el esquema se reconstruye bien
-    // la primera vez y revienta la segunda: el error clásico de un `migrate` que
-    // solo se probó sobre una base recién creada.
+    // `drop role` fails while the role still owns anything, so drop what it owns first.
+    // Otherwise this works on a fresh database and breaks on the second run.
     await pool.query(`
         do $$
         declare
@@ -48,13 +43,8 @@ export async function migrate(pool: pg.Pool): Promise<void> {
 }
 
 /**
- * Corre `fn` como la aplicación: rol `app_user` e identidad fijada en
- * `app.user_id`, dentro de una transacción que siempre se revierte para que cada
- * prueba parta del mismo estado.
- *
- * Es el único lugar del código donde se fija la identidad, y se fija con
- * `set_config` parametrizado: interpolarla en el texto del SQL sería una inyección
- * en el mecanismo que sostiene todo el aislamiento.
+ * Runs `fn` as the app (role app_user, identity in app.user_id) inside a transaction
+ * that is always rolled back. The identity goes through a parameter, never string-built SQL.
  */
 export async function asAppUser<T>(
     pool: pg.Pool,
@@ -68,7 +58,7 @@ export async function asAppUser<T>(
     })
 }
 
-/** Corre `fn` con el rol dueño de las tablas, sin identidad de aplicación. */
+/** Runs `fn` as the table owner, with no app identity. */
 export async function asOwner<T>(
     pool: pg.Pool,
     fn: (client: pg.PoolClient) => Promise<T>,
@@ -79,7 +69,7 @@ export async function asOwner<T>(
     })
 }
 
-/** Corre `fn` con el rol de migración, sin revertir: se usa para sembrar datos. */
+/** Runs `fn` as the migration role without rolling back. Used for seeding. */
 export async function asMigrator<T>(
     pool: pg.Pool,
     fn: (client: pg.PoolClient) => Promise<T>,

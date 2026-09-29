@@ -1,8 +1,8 @@
 {
-  "name": "saas-data-isolation",
+  "name": "pg-tenant-rls",
   "version": "1.0.0",
   "private": true,
-  "description": "Multi-tenant isolation in PostgreSQL with Row Level Security, negative-tested",
+  "description": "Row Level Security for multi-tenant Postgres, with tests that try to break it",
   "type": "module",
   "engines": {
     "node": ">=20"
