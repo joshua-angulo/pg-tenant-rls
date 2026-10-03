@@ -4,11 +4,11 @@ Row Level Security for a multi-tenant Postgres, with the tests that try to break
 
 [![CI](https://github.com/joshua-angulo/pg-tenant-rls/actions/workflows/ci.yml/badge.svg)](https://github.com/joshua-angulo/pg-tenant-rls/actions/workflows/ci.yml)
 
-This is the isolation layer from LuckAgents, a WhatsApp AI SaaS I built on my own and shelved this year, cut down to the smallest thing that still runs: three tables, two roles, six policies, 16 tests. Dependencies are `pg` and `vitest`.
+This is the isolation layer from LuckAgents, a WhatsApp AI SaaS I built on my own, cut down to the smallest thing that still runs: three tables, two roles, six policies, 16 tests. Dependencies are `pg` and `vitest`.
 
 ## Why it exists
 
-The usual way to keep tenants apart is `where tenant_id = $1` on every query. That has two problems. Forget the clause once and you leak. And, the one that bit me: the clause can be correct and the wrong user still gets in. A suspended member still belongs to the tenant. So does an invited user who never accepted. I found both reading data in my own product during a pre-launch audit. Every endpoint was right; no policy ever asked "is this membership active?".
+The usual way to keep tenants apart is `where tenant_id = $1` on every query. That has two problems. Forget the clause once and you leak. And, the one that bit me: the clause can be correct and the wrong user still gets in. A suspended member still belongs to the tenant. So does an invited user who never accepted. I found both reading data in my own product during an audit. Every endpoint was right; no policy ever asked "is this membership active?".
 
 So the check lives in Postgres. The app sets `app.user_id` on the transaction and writes plain SQL.
 
