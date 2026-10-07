@@ -4,7 +4,7 @@ Row Level Security for a multi-tenant Postgres, with the tests that try to break
 
 [![CI](https://github.com/joshua-angulo/pg-tenant-rls/actions/workflows/ci.yml/badge.svg)](https://github.com/joshua-angulo/pg-tenant-rls/actions/workflows/ci.yml)
 
-This is the isolation layer from LuckAgents, a WhatsApp AI SaaS I built on my own, cut down to the smallest thing that still runs: three tables, two roles, six policies, 16 tests. Dependencies are `pg` and `vitest`.
+This is the isolation layer from LuckAgents, a WhatsApp AI SaaS I built end to end, cut down to the smallest thing that still runs: three tables, two roles, six policies, 16 tests. Dependencies are `pg` and `vitest`.
 
 ## Why it exists
 
